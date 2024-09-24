@@ -33,8 +33,8 @@ class CustomFormatter(logging.Formatter):
 def setup():
     colorama.init()
     sys.excepthook = handle_exception
-    formatter_string = '%(asctime)s.%(msecs)03d - %(threadName)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
-    formatter_string_date = '%Y-%m-%d %H:%M:%S'
+    formatter_string = '%(asctime)s - %(threadName)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
+    formatter_string_date = '%Y-%m-%d %H:%M:%S.%f'
     logging.captureWarnings(True)
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
