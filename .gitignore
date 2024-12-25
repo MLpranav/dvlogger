@@ -1,0 +1,5 @@
+/dvlogger.egg-info
+/build
+/dist
+**/.DS_Store
+build.txt
