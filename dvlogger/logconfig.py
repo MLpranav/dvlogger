@@ -1,4 +1,4 @@
-import logging, sys, traceback, threading, colorama, datetime
+import logging, sys, traceback, threading, colorama, datetime, os
 
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 
@@ -67,6 +67,7 @@ def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg
     logging.captureWarnings(capture_warnings)
 
     logger = logging.getLogger()
+    logger.handlers.clear()
     logger.setLevel(logging.DEBUG)
     formatter = CustomFormatter(fmt=formatter_string, datefmt=formatter_string_date)
     formatter2 = logging.Formatter(fmt=formatter_string, datefmt=formatter_string_date)
