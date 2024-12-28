@@ -35,8 +35,8 @@ class CustomFormatter(logging.Formatter):
 def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
     """
     file_config
-        name ['dvlogger_rotating', 'dvlogger_timed', 'dvlogger_basic']
-        kind [ROTATING, TIMED, BASIC]
+        name [os.path.basename(sys.argv[0]).strip(), dvlogger]
+        kind [BASIC] # ROTATING, TIMED, BASIC
         level [logging.INFO]
         file_mode [text]
 
@@ -45,7 +45,7 @@ def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg
 
         timed_when ['midnight']
         timed_interval [1]
-        timed_count [5]
+        timed_count [7]
 
         basic_date_format ['%Y_%m_%d_%H_%M%_S_%f']
         basic_put_date [False]
@@ -57,6 +57,9 @@ def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg
         chat_id
         thread_id [None]
     """
+
+    if file_config is None:
+        file_config = {}
 
     colorama.init()
     formatter_string = '%(asctime)s.%(msecs)03d - %(threadName)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
@@ -73,6 +76,10 @@ def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
+    use_name = os.path.basename(sys.argv[0]).strip()
+    if use_name == '':
+        use_name = 'dvlogger'
+
     if exception_hook:
         sys.excepthook = log_except_hook
         threading.excepthook = thread_except_hook
@@ -81,18 +88,17 @@ def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg
         pass
 
     if use_file_handler:
-        if file_config['kind'] == 'ROTATING':
-            use_name = file_config.get("name", "dvlogger_rotating") + ".log"
+        if file_config.get('kind', 'BASIC') == 'BASIC':
+            if file_config.get("basic_put_date", False):
+                use_name = use_name + '_' + datetime.datetime.now().strftime(file_config.get("basic_date_format", "%Y_%m_%d_%H_%M%_S_%f"))
+            use_name = use_name + ".dvl.log"
+            file_handler = logging.FileHandler(use_name, mode='a' if file_config.get("basic_append", True) else 'w')
+        elif file_config['kind'] == 'ROTATING':
+            use_name = use_name + ".dvl.log"
             file_handler = RotatingFileHandler(use_name, mode='a', maxBytes=file_config.get('rotating_size', 1e6), backupCount=file_config.get('rotating_count', 3))
         elif file_config['kind'] == 'TIMED':
-            use_name = file_config.get("name", "dvlogger_timed") + ".log"
+            use_name = use_name + ".dvl.log"
             file_handler = TimedRotatingFileHandler(use_name, when=file_config.get('timed_when', 'midnight'), interval=file_config.get('timed_interval', 1), backupCount=file_config.get('timed_count', 7))
-        elif file_config['kind'] == 'BASIC':
-            use_name = file_config.get("name", "dvlogger_basic")
-            if file_config.get("basic_put_date", True):
-                use_name = use_name + '_' + datetime.datetime.now().strftime(file_config.get("basic_date_format", "%Y_%m_%d_%H_%M%_S_%f"))
-            use_name = use_name + ".log"
-            file_handler = logging.FileHandler(use_name, mode='a' if file_config.get("basic_append", True) else 'w')
         else:
             raise Exception(f"kind={file_config['kind']} is not defined")
 

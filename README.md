@@ -15,8 +15,8 @@ dvlogger.setup(level=logging.INFO, capture_warnings=True, exception_hook=True, u
 
 ```
 file_config
-    name ['dvlogger_rotating', 'dvlogger_timed', 'dvlogger_basic']
-    kind [ROTATING, TIMED, BASIC]
+    name [os.path.basename(sys.argv[0]).strip(), dvlogger]
+    kind [BASIC] # ROTATING, TIMED, BASIC
     level [logging.INFO]
     file_mode [text]
 
@@ -25,7 +25,7 @@ file_config
 
     timed_when ['midnight']
     timed_interval [1]
-    timed_count [5]
+    timed_count [7]
 
     basic_date_format ['%Y_%m_%d_%H_%M%_S_%f']
     basic_put_date [False]
