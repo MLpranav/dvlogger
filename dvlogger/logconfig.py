@@ -20,6 +20,7 @@ class CustomFormatter(logging.Formatter):
         red = "\033[31m"
         bold_red = "\033[1;31m"
         reset = "\033[0m"
+        green = "\033[32m"
 
         self.FORMATS = {
             logging.DEBUG: logging.Formatter(grey + fmt + reset, datefmt),
@@ -27,17 +28,18 @@ class CustomFormatter(logging.Formatter):
             logging.WARNING: logging.Formatter(yellow + fmt + reset, datefmt),
             logging.ERROR: logging.Formatter(red + fmt + reset, datefmt),
             logging.CRITICAL: logging.Formatter(bold_red + fmt + reset, datefmt),
+            logging.SUCCESS: logging.Formatter(green + fmt + reset, datefmt),
         }
 
     def format(self, record):
         return self.FORMATS[record.levelno].format(record)
 
-def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
+def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
     """
     file_config
         name [os.path.basename(sys.argv[0]).strip(), dvlogger]
         kind [BASIC] # ROTATING, TIMED, BASIC
-        level [logging.INFO]
+        level [logging.DEBUG]
         file_mode [text]
 
         rotating_size [1e6]
@@ -71,6 +73,10 @@ def setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg
     logger.setLevel(logging.DEBUG)
     formatter = CustomFormatter(fmt=formatter_string, datefmt=formatter_string_date)
     formatter2 = logging.Formatter(fmt=formatter_string, datefmt=formatter_string_date)
+
+    logging.SUCCESS = 25 # between WARNING and INFO
+    logging.addLevelName(logging.SUCCESS, 'SUCCESS')
+    setattr(logger, 'success', lambda msg, *args, **kwargs: logger.log(logging.SUCCESS, msg, *args, **kwargs))
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
