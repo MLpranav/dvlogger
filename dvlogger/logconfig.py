@@ -1,6 +1,13 @@
 import logging, sys, traceback, threading, colorama, datetime, os
-
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+
+def success(msg, *args, **kwargs):
+    if logging.getLogger().isEnabledFor(logging.SUCCESS):
+        logging.getLogger()._log(logging.SUCCESS, msg, args, **kwargs)
+
+logging.SUCCESS = 25 # between WARNING and INFO
+logging.addLevelName(logging.SUCCESS, 'SUCCESS')
+logging.success = success
 
 def thread_except_hook(args):
     log_except_hook(args.exc_type, args.exc_value, args.exc_traceback)
@@ -73,10 +80,6 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
     logger.setLevel(logging.DEBUG)
     formatter = CustomFormatter(fmt=formatter_string, datefmt=formatter_string_date)
     formatter2 = logging.Formatter(fmt=formatter_string, datefmt=formatter_string_date)
-
-    logging.SUCCESS = 25 # between WARNING and INFO
-    logging.addLevelName(logging.SUCCESS, 'SUCCESS')
-    setattr(logger, 'success', lambda msg, *args, **kwargs: logger.log(logging.SUCCESS, msg, *args, **kwargs))
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
