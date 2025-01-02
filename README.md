@@ -1,4 +1,4 @@
-# dvlogger (v1.1.2)
+# dvlogger (v1.1.3)
 
 ## TODO
 
@@ -10,14 +10,14 @@
 import logging
 import dvlogger
 
-dvlogger.setup(level=logging.INFO, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None)
+dvlogger.setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None)
 ```
 
 ```
 file_config
     name [os.path.basename(sys.argv[0]).strip(), dvlogger]
     kind [BASIC] # ROTATING, TIMED, BASIC
-    level [logging.INFO]
+    level [logging.DEBUG]
     file_mode [text]
 
     rotating_size [1e6]
