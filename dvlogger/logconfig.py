@@ -86,7 +86,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    use_name = os.path.basename(sys.argv[0]).strip()
+    use_name = file_config.get('name', os.path.basename(sys.argv[0]).strip())
     if use_name == '':
         use_name = 'dvlogger'
 
