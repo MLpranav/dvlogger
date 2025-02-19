@@ -1,4 +1,4 @@
-# dvlogger (v1.1.4)
+# dvlogger (v1.1.4b)
 
 ## TODO
 

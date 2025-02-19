@@ -112,7 +112,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         else:
             raise Exception(f"kind={file_config['kind']} is not defined")
 
-        file_handler.setLevel(file_config.get('level', logging.INFO))
+        file_handler.setLevel(file_config.get('level', logging.DEBUG))
         file_handler.setFormatter(formatter2)
         logger.addHandler(file_handler)
 
