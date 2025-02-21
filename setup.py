@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='dvlogger',
-    version='1.1.4c',
+    version='1.1.5',
     description='A custom logger with coloured output and uncaught exception logging.',
     packages=find_packages(),
     install_requires=['colorama'], # requests

@@ -71,7 +71,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         file_config = {}
 
     colorama.init()
-    formatter_string = '%(asctime)s.%(msecs)03d - %(threadName)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
+    formatter_string = '%(asctime)s.%(msecs)03d - %(threadName)s - %(taskName)s - %(levelname)s - %(filename)s.%(funcName)s#%(lineno)d - %(message)s'
     formatter_string_date = '%Y-%m-%d %H:%M:%S'
     logging.captureWarnings(capture_warnings)
 
