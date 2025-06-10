@@ -1,4 +1,17 @@
-import logging, sys, traceback, threading, colorama, datetime, os
+import datetime
+import json
+import logging
+import os
+import queue
+import sys
+import threading
+import time
+import traceback
+import urllib.parse
+import urllib.request
+
+import colorama
+
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 
 def success(msg, *args, **kwargs):
@@ -41,6 +54,87 @@ class CustomFormatter(logging.Formatter):
     def format(self, record):
         return self.FORMATS[record.levelno].format(record)
 
+class TGHandler(logging.Handler):
+    def __init__(self, level, level_bypass_prefix, bot_key, chat_id, thread_id=None):
+        super().__init__()
+        self.level = level
+        self.level_bypass_prefix = level_bypass_prefix
+        self.bot_key = bot_key
+        self.chat_id = str(chat_id)
+        self.thread_id = thread_id
+
+        self.queue = queue.Queue()
+        self.doc_len = 3000
+
+    def emit(self, record):
+        if record.msg.startswith(self.level_bypass_prefix) or record.levelno >= self.level:
+            log_message = self.format(record)
+            self.queue.put(log_message)
+
+    def queue_process(self):
+        while True:
+            log_message = self.queue.get(True, None)
+            self.queue.task_done()
+
+            for _ in range(5):
+                try:
+                    if len(log_message) < self.doc_len:
+                        datadict = {'chat_id': self.chat_id, 'text': log_message}
+                        if self.thread_id is not None:
+                            datadict['message_thread_id'] = self.thread_id
+                        url = f'https://api.telegram.org/bot{self.bot_key}/sendMessage?{urllib.parse.urlencode(datadict)}'
+                        req = urllib.request.Request(url)
+                        with urllib.request.urlopen(req, timeout=30) as resp:
+                            resp_data = resp.read()
+                            status_code = resp.status
+                            resp_json = json.loads(resp_data.decode())
+                    else:
+                        boundary = '----WebKitFormBoundary' + str(int(time.time() * 1000))
+                        filedata = log_message.encode()
+                        filename = f'{time.time()}.txt'
+                        data = f'--{boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n{self.chat_id}\r\n'
+                        if self.thread_id is not None:
+                            data += f'--{boundary}\r\nContent-Disposition: form-data; name="message_thread_id"\r\n\r\n{self.thread_id}\r\n'
+                        data += (
+                            f'--{boundary}\r\n'
+                            f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'
+                            f'Content-Type: text/plain\r\n\r\n'
+                        )
+                        body = data.encode() + filedata + f'\r\n--{boundary}--\r\n'.encode()
+                        req = urllib.request.Request(
+                            f'https://api.telegram.org/bot{self.bot_key}/sendDocument',
+                            data=body,
+                            method='POST',
+                            headers={
+                                'Content-Type': f'multipart/form-data; boundary={boundary}',
+                                'Content-Length': str(len(body))
+                                }
+                        )
+                        with urllib.request.urlopen(req, timeout=30) as resp:
+                            resp_data = resp.read()
+                            status_code = resp.status
+                            resp_json = json.loads(resp_data.decode())
+
+                    if status_code == 429:
+                        try:
+                            time.sleep(int(resp_json["retry_after"]) + 2)
+                        except KeyError:
+                            try:
+                                time.sleep(int(resp_json["parameters"]["retry_after"]) + 2)
+                            except KeyError:
+                                time.sleep(5)
+                    elif (status_code != 200) or ("ok" not in resp_json) or (not resp_json["ok"]):
+                        logging.warning(f'TGHandler {status_code} - {resp_json}')
+                        time.sleep(5)
+                    else:
+                        time.sleep(0.05) # 20 messages per second
+                        break
+                except Exception:
+                    logging.warning(traceback.format_exc())
+                    time.sleep(5)
+            else:
+                logging.error(f'TGHandler failed to send message: {log_message}')
+
 def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
     """
     file_config
@@ -62,6 +156,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
 
     tg_config
         level [ERROR]
+        level_bypass_prefix ["TG - "]
         bot_key
         chat_id
         thread_id [None]
@@ -94,9 +189,6 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         sys.excepthook = log_except_hook
         threading.excepthook = thread_except_hook
 
-    if use_tg_handler:
-        pass
-
     if use_file_handler:
         if file_config.get('kind', 'BASIC') == 'BASIC':
             if file_config.get("basic_put_date", False):
@@ -116,4 +208,16 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         file_handler.setFormatter(formatter2)
         logger.addHandler(file_handler)
 
-    logging.info('*******')
+    if use_tg_handler:
+        if tg_config is not None and 'bot_key' in tg_config and 'chat_id' in tg_config:
+            if 'thread_id' not in tg_config:
+                tg_config['thread_id'] = None
+            tg_handler = TGHandler(tg_config.get('level', logging.ERROR), tg_config.get('level_bypass_prefix', 'TG - '), tg_config['bot_key'], tg_config['chat_id'], tg_config['thread_id'])
+            tg_handler.setLevel(logging.DEBUG)
+            tg_handler.setFormatter(formatter2)
+            logger.addHandler(tg_handler)
+            threading.Thread(target=tg_handler.queue_process, name='TGHandlerQueueProcessor', daemon=True).start()
+        else:
+            logging.warning('Failed to setup TGHandler: missing bot_key/chat_id.')
+
+        logging.info('*******')

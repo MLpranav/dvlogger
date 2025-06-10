@@ -2,10 +2,10 @@ from setuptools import setup, find_packages
 
 setup(
     name='dvlogger',
-    version='1.1.5',
+    version='1.2.0',
     description='A custom logger with coloured output and uncaught exception logging.',
     packages=find_packages(),
-    install_requires=['colorama'], # requests
+    install_requires=['colorama'],
     author='Pranav Mittal',
     author_email='pranavmittal611@gmail.com',
     url='https://github.com/mlpranav/dvlogger',

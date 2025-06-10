@@ -1,4 +1,8 @@
-# dvlogger (v1.1.5)
+# dvlogger (v1.2.0)
+
+## Requirements
+
+- colorama
 
 ## TODO
 
@@ -33,6 +37,7 @@ file_config
 
 tg_config
     level [ERROR]
+    level_bypass_prefix ["TG - "]
     bot_key
     chat_id
     thread_id [None]
