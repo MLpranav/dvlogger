@@ -155,7 +155,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         basic_append [True]
 
     tg_config
-        level [ERROR]
+        level [logging.ERROR]
         level_bypass_prefix ["TG - "]
         bot_key
         chat_id
