@@ -57,7 +57,7 @@ class CustomFormatter(logging.Formatter):
 class TGHandler(logging.Handler):
     def __init__(self, level, level_bypass_prefix, bot_key, chat_id, thread_id=None):
         super().__init__()
-        self.level = level
+        self.level_filter = level
         self.level_bypass_prefix = level_bypass_prefix
         self.bot_key = bot_key
         self.chat_id = str(chat_id)
@@ -67,7 +67,7 @@ class TGHandler(logging.Handler):
         self.doc_len = 3000
 
     def emit(self, record):
-        if record.msg.startswith(self.level_bypass_prefix) or record.levelno >= self.level:
+        if record.msg.startswith(self.level_bypass_prefix) or record.levelno >= self.level_filter:
             log_message = self.format(record)
             self.queue.put(log_message)
 
