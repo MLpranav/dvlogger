@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dvlogger"
+version = "1.3.4"
+description = "A custom logger with coloured output and uncaught exception logging. Supports threading and asyncio."
+authors = [
+    {name = "Pranav Mittal", email = "pranavmittal611@gmail.com"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    "colorama",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/mlpranav/dvlogger"

@@ -41,6 +41,21 @@ def asyncio_exception_handler(loop, context):
         logging.error(f'Non-exception asyncio error: {context}')
         loop.default_exception_handler(context)
 
+async def asyncio_task_wrapper(coro):
+    try:
+        return await coro
+    except Exception as e:
+        logging.error('Task exception caught immediately:')
+        sys.excepthook(type(e), e, e.__traceback__)
+        raise
+
+_original_create_task = asyncio.create_task
+def asyncio_patched_create_task(coro, **kwargs):
+    if asyncio.iscoroutine(coro):
+        wrapped_coro = asyncio_task_wrapper(coro)
+        return _original_create_task(wrapped_coro, **kwargs)
+    return _original_create_task(coro, **kwargs)
+
 _original_new_event_loop = asyncio.new_event_loop
 def asyncio_patched_new_event_loop(*args, **kwargs):
     loop = _original_new_event_loop(*args, **kwargs)
@@ -211,6 +226,8 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
     if exception_hook:
         sys.excepthook = log_except_hook
         threading.excepthook = thread_except_hook
+
+        asyncio.create_task = asyncio_patched_create_task
         asyncio.new_event_loop = asyncio_patched_new_event_loop
         policy.new_event_loop = asyncio_patched_policy_new_event_loop
 
