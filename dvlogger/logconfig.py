@@ -204,7 +204,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
     if exception_hook:
         sys.excepthook = log_except_hook
         threading.excepthook = thread_except_hook
-        asyncio.new_event_loop = _patched_new_event_loop
+        asyncio.new_event_loop = asyncio_patched_new_event_loop
 
     if use_file_handler:
         if file_config.get('kind', 'BASIC') == 'BASIC':
