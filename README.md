@@ -4,11 +4,14 @@
 
 - colorama
 
-## TODO
+## Todo
 
 - `file_config.level` - Take list of multiple levels to create multiple files
 - `file_config.file_mode` - Implement CSV
 - `use_tg_handler` and `tg_config` - Implement Telegram handler with multiple tries and exponential backoff
+- Asyncio patch - add support for `uvloop` (patch `asyncio.DefaultEventLoopPolicy.new_event_loop`) and other implementations
+
+## Usage
 
 ```
 import logging
