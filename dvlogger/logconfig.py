@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 import logging
@@ -30,6 +31,21 @@ def log_except_hook(exc_type, exc_value, exc_traceback):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return None
     logging.error(''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+
+def asyncio_exception_handler(loop, context):
+    exception = context.get('exception')
+    if exception:
+        logging.error('Asyncio error:')
+        sys.excepthook(type(exception), exception, exception.__traceback__)
+    else:
+        logging.error(f'Non-exception asyncio error: {context}')
+        loop.default_exception_handler(context)
+
+_original_new_event_loop = asyncio.new_event_loop
+def asyncio_patched_new_event_loop(*args, **kwargs):
+    loop = _original_new_event_loop(*args, **kwargs)
+    loop.set_exception_handler(asyncio_exception_handler)
+    return loop
 
 class CustomFormatter(logging.Formatter):
     def __init__(self, fmt, datefmt):
@@ -188,6 +204,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
     if exception_hook:
         sys.excepthook = log_except_hook
         threading.excepthook = thread_except_hook
+        asyncio.new_event_loop = _patched_new_event_loop
 
     if use_file_handler:
         if file_config.get('kind', 'BASIC') == 'BASIC':
