@@ -1,4 +1,4 @@
-# dvlogger (v1.3.1)
+# dvlogger (v1.3.2)
 
 ## Requirements
 

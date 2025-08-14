@@ -47,6 +47,13 @@ def asyncio_patched_new_event_loop(*args, **kwargs):
     loop.set_exception_handler(asyncio_exception_handler)
     return loop
 
+policy = asyncio.get_event_loop_policy()
+_original_policy_new_event_loop = policy.new_event_loop
+def asyncio_patched_policy_new_event_loop(*args, **kwargs):
+    loop = _original_policy_new_event_loop(*args, **kwargs)
+    loop.set_exception_handler(asyncio_exception_handler)
+    return loop
+
 class CustomFormatter(logging.Formatter):
     def __init__(self, fmt, datefmt):
         super().__init__(fmt=fmt, datefmt=datefmt)
@@ -205,6 +212,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         sys.excepthook = log_except_hook
         threading.excepthook = thread_except_hook
         asyncio.new_event_loop = asyncio_patched_new_event_loop
+        policy.new_event_loop = asyncio_patched_policy_new_event_loop
 
     if use_file_handler:
         if file_config.get('kind', 'BASIC') == 'BASIC':
