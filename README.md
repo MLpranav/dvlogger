@@ -1,4 +1,4 @@
-# dvlogger (v1.3.4)
+# dvlogger (v1.3.5)
 
 ## Requirements
 
@@ -8,7 +8,7 @@
 
 - `file_config.level` - Take list of multiple levels to create multiple files
 - `file_config.file_mode` - Implement CSV
-- `use_tg_handler` and `tg_config` - Implement Telegram handler with multiple tries and exponential backoff
+- Add `send_file` method to Telegram handler
 - Asyncio patch - add support for `uvloop` (patch `asyncio.DefaultEventLoopPolicy.new_event_loop`) and other implementations
 
 ## Usage
@@ -41,7 +41,9 @@ file_config
 tg_config
     level [logging.ERROR]
     level_bypass_prefix ["TG - "]
+    message_skip_prefix ["NTG - "]
     bot_key
     chat_id
     thread_id [None]
+    flush_interval [5000] # ms
 ```
