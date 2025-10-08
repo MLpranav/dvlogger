@@ -2,18 +2,19 @@ import asyncio
 import datetime
 import json
 import logging
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+import math
 import os
 import queue
 import sys
 import threading
 import time
 import traceback
+import urllib.error
 import urllib.parse
 import urllib.request
 
 import colorama
-
-from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 
 def success(msg, *args, **kwargs):
     if logging.getLogger().isEnabledFor(logging.SUCCESS):
@@ -93,26 +94,56 @@ class CustomFormatter(logging.Formatter):
         return self.FORMATS[record.levelno].format(record)
 
 class TGHandler(logging.Handler):
-    def __init__(self, level, level_bypass_prefix, bot_key, chat_id, thread_id=None):
+    def __init__(self, level, level_bypass_prefix, message_skip_prefix, bot_key, chat_id, thread_id, flush_interval):
         super().__init__()
         self.level_filter = level
         self.level_bypass_prefix = level_bypass_prefix
+        self.message_skip_prefix = message_skip_prefix
         self.bot_key = bot_key
-        self.chat_id = str(chat_id)
+        self.chat_id = chat_id
         self.thread_id = thread_id
+        self.flush_interval = flush_interval / 1000.0
+
+        if isinstance(self.chat_id, float) or isinstance(self.chat_id, int):
+            self.chat_id = str(int(self.chat_id))
+        if isinstance(self.thread_id, float) or isinstance(self.thread_id, int):
+            self.thread_id = str(int(self.thread_id))
 
         self.queue = queue.Queue()
         self.doc_len = 3000
 
     def emit(self, record):
-        if record.msg.startswith(self.level_bypass_prefix) or record.levelno >= self.level_filter:
+        if not isinstance(record.msg, str):
+            try:
+                record.msg = str(record.msg)
+            except Exception:
+                try:
+                    record.msg = '<>' + str(type(record.msg))
+                except Exception:
+                    record.msg = '<Unknown>'
+        if not record.msg.startswith(self.message_skip_prefix) and (record.msg.startswith(self.level_bypass_prefix) or record.levelno >= self.level_filter):
             log_message = self.format(record)
             self.queue.put(log_message)
 
     def queue_process(self):
         while True:
-            log_message = self.queue.get(True, None)
-            self.queue.task_done()
+            cur_time = time.time()
+            next_flush = math.ceil(cur_time / self.flush_interval) * self.flush_interval
+            sleep_time = next_flush - cur_time
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+            log_messages = []
+            while True: # drain queue
+                try:
+                    log_message = self.queue.get(timeout=1)
+                    self.queue.task_done()
+                    log_messages.append(log_message)
+                except queue.Empty:
+                    break
+            if len(log_messages) == 0:
+                continue
+            log_message = '\n\n'.join(log_messages)
 
             for _ in range(5):
                 try:
@@ -122,10 +153,6 @@ class TGHandler(logging.Handler):
                             datadict['message_thread_id'] = self.thread_id
                         url = f'https://api.telegram.org/bot{self.bot_key}/sendMessage?{urllib.parse.urlencode(datadict)}'
                         req = urllib.request.Request(url)
-                        with urllib.request.urlopen(req, timeout=30) as resp:
-                            resp_data = resp.read()
-                            status_code = resp.status
-                            resp_json = json.loads(resp_data.decode())
                     else:
                         boundary = '----WebKitFormBoundary' + str(int(time.time() * 1000))
                         filedata = log_message.encode()
@@ -148,30 +175,39 @@ class TGHandler(logging.Handler):
                                 'Content-Length': str(len(body))
                                 }
                         )
+
+                    try:
                         with urllib.request.urlopen(req, timeout=30) as resp:
                             resp_data = resp.read()
                             status_code = resp.status
                             resp_json = json.loads(resp_data.decode())
 
-                    if status_code == 429:
+                        if status_code != 200 or "ok" not in resp_json or not resp_json["ok"]:
+                            logging.warning(f'{self.message_skip_prefix}TGHandler {status_code} - {resp_json}')
+                            time.sleep(5)
+                        else:
+                            time.sleep(0.05) # 20 messages per second
+                            break
+                    except urllib.error.HTTPError as e:
+                        resp_data = e.read()
+                        status_code = e.code
                         try:
-                            time.sleep(int(resp_json["retry_after"]) + 2)
-                        except KeyError:
-                            try:
-                                time.sleep(int(resp_json["parameters"]["retry_after"]) + 2)
-                            except KeyError:
+                            resp_json = json.loads(resp_data.decode())
+                        except Exception:
+                            resp_json = {}
+
+                        if status_code == 429:
+                            if "retry_after" in resp_json:
+                                time.sleep(int(resp_json["retry_after"]) + 5)
+                            elif "parameters" in resp_json and "retry_after" in resp_json["parameters"]:
+                                time.sleep(int(resp_json["parameters"]["retry_after"]) + 5)
+                            else:
                                 time.sleep(5)
-                    elif (status_code != 200) or ("ok" not in resp_json) or (not resp_json["ok"]):
-                        logging.warning(f'TGHandler {status_code} - {resp_json}')
-                        time.sleep(5)
-                    else:
-                        time.sleep(0.05) # 20 messages per second
-                        break
                 except Exception:
-                    logging.warning(traceback.format_exc())
+                    logging.warning(f'{self.message_skip_prefix}{traceback.format_exc()}')
                     time.sleep(5)
             else:
-                logging.error(f'TGHandler failed to send message: {log_message}')
+                logging.error(f'{self.message_skip_prefix}TGHandler failed to send message: {log_message}')
 
 def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
     """
@@ -195,9 +231,11 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
     tg_config
         level [logging.ERROR]
         level_bypass_prefix ["TG - "]
+        message_skip_prefix ["NTG - "]
         bot_key
         chat_id
         thread_id [None]
+        flush_interval [5000] # ms
     """
 
     if file_config is None:
@@ -254,11 +292,19 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         if tg_config is not None and 'bot_key' in tg_config and 'chat_id' in tg_config:
             if 'thread_id' not in tg_config:
                 tg_config['thread_id'] = None
-            tg_handler = TGHandler(tg_config.get('level', logging.ERROR), tg_config.get('level_bypass_prefix', 'TG - '), tg_config['bot_key'], tg_config['chat_id'], tg_config['thread_id'])
+            tg_handler = TGHandler(
+                tg_config.get('level', logging.ERROR),
+                tg_config.get('level_bypass_prefix', 'TG - '),
+                tg_config.get('message_skip_prefix', 'NTG - '),
+                tg_config['bot_key'],
+                tg_config['chat_id'],
+                tg_config.get('thread_id', None),
+                tg_config.get('flush_interval', 5000),
+            )
             tg_handler.setLevel(logging.DEBUG)
             tg_handler.setFormatter(formatter2)
             logger.addHandler(tg_handler)
-            threading.Thread(target=tg_handler.queue_process, name='TGHandlerQueueProcessor', daemon=True).start()
+            threading.Thread(target=tg_handler.queue_process, name='TGHandlerQueueProcessor', daemon=False).start()
         else:
             logging.warning('Failed to setup TGHandler: missing bot_key/chat_id.')
 
