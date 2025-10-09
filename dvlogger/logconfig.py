@@ -111,9 +111,11 @@ class TGHandler(logging.Handler):
         if isinstance(self.thread_id, float) or isinstance(self.thread_id, int):
             self.thread_id = str(int(self.thread_id))
 
+        self.doc_len = 3000
+        self.error_count = 0
+        self.error_max = 100
         self.queue = queue.Queue()
         self.shutdown_event = threading.Event()
-        self.doc_len = 3000
 
         atexit.register(self.stop)
         signal.signal(signal.SIGINT, self._signal_handler) # Ctrl+C
@@ -198,12 +200,14 @@ class TGHandler(logging.Handler):
                             resp_json = json.loads(resp_data.decode())
 
                         if status_code != 200 or "ok" not in resp_json or not resp_json["ok"]:
+                            self.error_count += 1
                             logging.warning(f'{self.message_skip_prefix}TGHandler {status_code} - {resp_json}')
                             time.sleep(5)
                         else:
                             time.sleep(0.05) # 20 messages per second
                             break
                     except urllib.error.HTTPError as e:
+                        self.error_count += 1
                         resp_data = e.read()
                         status_code = e.code
                         try:
@@ -219,12 +223,13 @@ class TGHandler(logging.Handler):
                             else:
                                 time.sleep(5)
                 except Exception:
+                    self.error_count += 1
                     logging.warning(f'{self.message_skip_prefix}{traceback.format_exc()}')
                     time.sleep(5)
             else:
                 logging.error(f'{self.message_skip_prefix}TGHandler failed to send message: {log_message}')
 
-            if self.shutdown_event.is_set() and self.queue.empty():
+            if (self.shutdown_event.is_set() and self.queue.empty()) or (self.error_count >= self.error_max):
                 break
 
 def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
