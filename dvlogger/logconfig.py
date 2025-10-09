@@ -1,4 +1,5 @@
 import asyncio
+import atexit
 import datetime
 import json
 import logging
@@ -6,6 +7,7 @@ from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import math
 import os
 import queue
+import signal
 import sys
 import threading
 import time
@@ -110,7 +112,20 @@ class TGHandler(logging.Handler):
             self.thread_id = str(int(self.thread_id))
 
         self.queue = queue.Queue()
+        self.shutdown_event = threading.Event()
         self.doc_len = 3000
+
+        atexit.register(self.stop)
+        signal.signal(signal.SIGINT, self._signal_handler) # Ctrl+C
+        signal.signal(signal.SIGTERM, self._signal_handler) # Kill signal
+
+    def _signal_handler(self, signum, frame):
+        self.stop()
+        sys.exit(0)
+
+    def stop(self):
+        if not self.shutdown_event.is_set():
+            self.shutdown_event.set()
 
     def emit(self, record):
         if not isinstance(record.msg, str):
@@ -136,7 +151,7 @@ class TGHandler(logging.Handler):
             log_messages = []
             while True: # drain queue
                 try:
-                    log_message = self.queue.get(timeout=1)
+                    log_message = self.queue.get(block=False)
                     self.queue.task_done()
                     log_messages.append(log_message)
                 except queue.Empty:
@@ -208,6 +223,9 @@ class TGHandler(logging.Handler):
                     time.sleep(5)
             else:
                 logging.error(f'{self.message_skip_prefix}TGHandler failed to send message: {log_message}')
+
+            if self.shutdown_event.is_set() and self.queue.empty():
+                break
 
 def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
     """
