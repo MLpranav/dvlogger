@@ -1,1 +1,1 @@
-from .logconfig import setup, CustomFormatter
+from .logconfig import setup, CustomFormatter, TG_HANDLER

@@ -1,5 +1,4 @@
 import asyncio
-import atexit
 import datetime
 import json
 import logging
@@ -115,8 +114,6 @@ class TGHandler(logging.Handler):
         self.error_max = 100
         self.queue = queue.Queue()
         self.shutdown_event = threading.Event()
-
-        atexit.register(self.stop)
 
     def stop(self):
         if not self.shutdown_event.is_set():
@@ -314,7 +311,8 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         if tg_config is not None and 'bot_key' in tg_config and 'chat_id' in tg_config:
             if 'thread_id' not in tg_config:
                 tg_config['thread_id'] = None
-            tg_handler = TGHandler(
+            global TG_HANDLER
+            TG_HANDLER = TGHandler(
                 tg_config.get('level', logging.ERROR),
                 tg_config.get('level_bypass_prefix', 'TG - '),
                 tg_config.get('message_skip_prefix', 'NTG - '),
@@ -323,11 +321,13 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
                 tg_config.get('thread_id', None),
                 tg_config.get('flush_interval', 5000),
             )
-            tg_handler.setLevel(logging.DEBUG)
-            tg_handler.setFormatter(formatter2)
-            logger.addHandler(tg_handler)
-            threading.Thread(target=tg_handler.queue_process, name='TGHandlerQueueProcessor', daemon=False).start()
+            TG_HANDLER.setLevel(logging.DEBUG)
+            TG_HANDLER.setFormatter(formatter2)
+            logger.addHandler(TG_HANDLER)
+            threading.Thread(target=TG_HANDLER.queue_process, name='TGHandlerQueueProcessor', daemon=False).start()
         else:
             logging.warning('Failed to setup TGHandler: missing bot_key/chat_id.')
 
         logging.info('*******')
+
+TG_HANDLER = None

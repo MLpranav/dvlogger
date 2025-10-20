@@ -1,4 +1,4 @@
-# dvlogger (v1.3.8)
+# dvlogger (v1.3.9)
 
 ## Requirements
 
@@ -46,4 +46,11 @@ tg_config
     chat_id
     thread_id [None]
     flush_interval [5000] # ms
+```
+
+## Cleanup
+
+```
+if dvlogger.TG_HANDLER:
+    dvlogger.TG_HANDLER.stop()
 ```
