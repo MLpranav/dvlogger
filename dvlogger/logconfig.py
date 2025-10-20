@@ -94,8 +94,7 @@ class CustomFormatter(logging.Formatter):
         return self.FORMATS[record.levelno].format(record)
 
 class TGHandler(logging.Handler):
-    def __init__(self, level, level_bypass_prefix, message_skip_prefix, bot_key, chat_id, thread_id, flush_interval):
-        super().__init__()
+    def setup(self, level, level_bypass_prefix, message_skip_prefix, bot_key, chat_id, thread_id, flush_interval):
         self.level_filter = level
         self.level_bypass_prefix = level_bypass_prefix
         self.message_skip_prefix = message_skip_prefix
@@ -311,8 +310,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         if tg_config is not None and 'bot_key' in tg_config and 'chat_id' in tg_config:
             if 'thread_id' not in tg_config:
                 tg_config['thread_id'] = None
-            global TG_HANDLER
-            TG_HANDLER = TGHandler(
+            TG_HANDLER.setup(
                 tg_config.get('level', logging.ERROR),
                 tg_config.get('level_bypass_prefix', 'TG - '),
                 tg_config.get('message_skip_prefix', 'NTG - '),
@@ -330,4 +328,4 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
 
         logging.info('*******')
 
-TG_HANDLER = None
+TG_HANDLER = TGHandler()
