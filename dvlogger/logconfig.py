@@ -7,7 +7,6 @@ from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import math
 import os
 import queue
-import signal
 import sys
 import threading
 import time
@@ -118,16 +117,13 @@ class TGHandler(logging.Handler):
         self.shutdown_event = threading.Event()
 
         atexit.register(self.stop)
-        signal.signal(signal.SIGINT, self._signal_handler) # Ctrl+C
-        signal.signal(signal.SIGTERM, self._signal_handler) # Kill signal
-
-    def _signal_handler(self, signum, frame):
-        self.stop()
-        sys.exit(0)
 
     def stop(self):
         if not self.shutdown_event.is_set():
+            logging.info(f'{self.message_skip_prefix}Shutting down dvlogger...')
             self.shutdown_event.set()
+        else:
+            logging.info(f'{self.message_skip_prefix}dvlogger already shutdown...')
 
     def emit(self, record):
         if not isinstance(record.msg, str):
@@ -162,7 +158,7 @@ class TGHandler(logging.Handler):
                 continue
             log_message = '\n\n'.join(log_messages)
 
-            for _ in range(5):
+            for ix in range(5):
                 try:
                     if len(log_message) < self.doc_len:
                         datadict = {'chat_id': self.chat_id, 'text': log_message}
@@ -222,12 +218,15 @@ class TGHandler(logging.Handler):
                                 time.sleep(int(resp_json["parameters"]["retry_after"]) + 5)
                             else:
                                 time.sleep(5)
+                        else:
+                            logging.warning(f'{self.message_skip_prefix}TGHandler try #{ix+1} failed - {resp_json}')
+                            time.sleep(5)
                 except Exception:
                     self.error_count += 1
-                    logging.warning(f'{self.message_skip_prefix}{traceback.format_exc()}')
+                    logging.warning(f'{self.message_skip_prefix}TGHandler try #{ix+1} failed - {traceback.format_exc()}')
                     time.sleep(5)
             else:
-                logging.error(f'{self.message_skip_prefix}TGHandler failed to send message: {log_message}')
+                logging.error(f'{self.message_skip_prefix}TGHandler all tries failed: {log_message}')
 
             if (self.shutdown_event.is_set() and self.queue.empty()) or (self.error_count >= self.error_max):
                 break
