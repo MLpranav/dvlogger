@@ -223,7 +223,7 @@ class TGHandler(logging.Handler):
                     record.msg = '<Unknown>'
         if not record.msg.startswith(self.message_skip_prefix) and (record.msg.startswith(self.level_bypass_prefix) or record.levelno >= self.level_filter):
             log_message = self.format(record)
-            self.queue.put(log_message)
+            self.queue.put((record.levelno, log_message))
 
     def queue_process(self):
         while True:
@@ -236,18 +236,45 @@ class TGHandler(logging.Handler):
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-            log_messages = []
+            log_entries = []
             while True: # drain queue
                 try:
-                    log_message = self.queue.get(block=False)
+                    entry = self.queue.get(block=False)
                     self.queue.task_done()
-                    log_messages.append(log_message)
+                    log_entries.append(entry)
                 except queue.Empty:
                     break
 
-            if len(log_messages) == 0:
+            if len(log_entries) == 0:
                 continue
-            log_message = '\n\n'.join(log_messages)
+
+            max_level = max(lvl for lvl, _ in log_entries)
+            log_message = '\n\n'.join(msg for _, msg in log_entries)
+
+            if max_level >= logging.WARNING and self.error_chat_id is not None:
+                log_message2 = '\n\n'.join(msg for lvl, msg in log_entries if lvl >= logging.WARNING)
+                if len(log_message2) < self.doc_len:
+                    datadict = {'chat_id': self.error_chat_id, 'text': log_message2}
+                    if self.error_thread_id is not None:
+                        datadict['message_thread_id'] = self.error_thread_id
+                    build_req = lambda: urllib.request.Request(
+                        f'https://api.telegram.org/bot{self.bot_key}/sendMessage',
+                        data=json.dumps(datadict).encode(),
+                        method='POST',
+                        headers={'Content-Type': 'application/json'},
+                    )
+                else:
+                    caption = ''
+                    if max_level >= logging.WARNING:
+                        caption = 'WARNING ⚠️'
+                    if max_level >= logging.ERROR:
+                        caption = 'ERROR ❌'
+                    if max_level >= logging.CRITICAL:
+                        caption = 'CRITICAL ❌'
+                    build_req = lambda: self._build_document_request(self.error_chat_id, self.error_thread_id, log_message2.encode(), f'{time.time()}.txt', caption, 'text/plain')
+                self._tg_request(build_req)
+                time.sleep(0.05)
+
             if len(log_message) < self.doc_len:
                 datadict = {'chat_id': self.chat_id, 'text': log_message}
                 if self.thread_id is not None:
@@ -260,13 +287,12 @@ class TGHandler(logging.Handler):
                 )
             else:
                 caption = ''
-                if '- WARNING ⚠️' in log_message:
+                if max_level >= logging.WARNING:
                     caption = 'WARNING ⚠️'
-                if '- ERROR ❌' in log_message:
+                if max_level >= logging.ERROR:
                     caption = 'ERROR ❌'
-                if '- CRITICAL ❌' in log_message:
+                if max_level >= logging.CRITICAL:
                     caption = 'CRITICAL ❌'
-
                 build_req = lambda: self._build_document_request(self.chat_id, self.thread_id, log_message.encode(), f'{time.time()}.txt', caption, 'text/plain')
             self._tg_request(build_req)
             time.sleep(0.05) # 20 messages per second
