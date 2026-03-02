@@ -1,13 +1,14 @@
-# dvlogger (v1.4.0)
+# dvlogger (v2.0.1)
 
 ## Requirements
 
 - colorama
 
-## Todo
+## TODO
 
-- `file_config.level` - Take list of multiple levels to create multiple files
-- `file_config.file_mode` - Implement CSV
+- AWS CloudWatch support - refer to `watchtower`
+- Take list of multiple levels in `file_config.level` to create multiple files
+- CSV support in `file_config.file_mode`
 - Asyncio patch - add support for `uvloop` (patch `asyncio.DefaultEventLoopPolicy.new_event_loop`) and other implementations
 
 ## Usage
