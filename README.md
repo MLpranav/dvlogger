@@ -8,7 +8,6 @@
 
 - `file_config.level` - Take list of multiple levels to create multiple files
 - `file_config.file_mode` - Implement CSV
-- Add `send_file` method to Telegram handler
 - Asyncio patch - add support for `uvloop` (patch `asyncio.DefaultEventLoopPolicy.new_event_loop`) and other implementations
 
 ## Usage
@@ -18,6 +17,9 @@ import logging
 import dvlogger
 
 dvlogger.setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None)
+
+dvlogger.tg_send_file(FILE_PATH, 'file_name')
+dvlogger.tg_send_file(FILE_OBJECT, 'file_name', 'caption', is_error=True)
 ```
 
 ```
@@ -45,12 +47,7 @@ tg_config
     bot_key
     chat_id
     thread_id [None]
+    error_chat_id [None]
+    error_thread_id [None]
     flush_interval [5000] # ms
-```
-
-## Cleanup
-
-```
-if dvlogger.TG_HANDLER:
-    dvlogger.TG_HANDLER.stop()
 ```
