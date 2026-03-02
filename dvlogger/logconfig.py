@@ -359,6 +359,12 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         asyncio.new_event_loop = asyncio_patched_new_event_loop
         policy.new_event_loop = asyncio_patched_policy_new_event_loop
 
+        try:
+            loop = asyncio.get_event_loop()
+            loop.set_exception_handler(asyncio_exception_handler)
+        except RuntimeError:
+            pass
+
     if use_file_handler:
         if file_config.get('kind', 'BASIC') == 'BASIC':
             if file_config.get("basic_put_date", False):
