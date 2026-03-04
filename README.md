@@ -1,4 +1,4 @@
-# dvlogger (v2.0.1)
+# dvlogger (v2.0.4)
 
 ## Requirements
 
@@ -17,7 +17,7 @@
 import logging
 import dvlogger
 
-dvlogger.setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None)
+dvlogger.setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None, log_prefix="Prod-Shard-G6")
 
 dvlogger.tg_send_file(FILE_PATH, 'file_name')
 dvlogger.tg_send_file(FILE_OBJECT, 'file_name', 'caption', is_error=True)

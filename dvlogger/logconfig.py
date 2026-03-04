@@ -297,7 +297,7 @@ class TGHandler(logging.Handler):
             self._tg_request(build_req)
             time.sleep(0.05) # 20 messages per second
 
-def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None):
+def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_tg_handler=False, use_file_handler=False, file_config=None, tg_config=None, log_prefix=None):
     """
     file_config
         name [os.path.basename(sys.argv[0]).strip(), dvlogger]
@@ -332,7 +332,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
         file_config = {}
 
     colorama.init()
-    formatter_string = '%(asctime)s.%(msecs)03d - %(threadName)s - %(taskName)s - %(levelname)s - %(filename)s.%(funcName)s#%(lineno)d - %(message)s'
+    formatter_string = f'{str(log_prefix) + " - " if log_prefix is not None else ""}%(asctime)s.%(msecs)03d - %(threadName)s - %(taskName)s - %(levelname)s - %(filename)s.%(funcName)s#%(lineno)d - %(message)s'
     formatter_string_date = '%Y-%m-%d %H:%M:%S'
     logging.captureWarnings(capture_warnings)
 
