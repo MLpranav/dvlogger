@@ -98,7 +98,7 @@ class CustomFormatter(logging.Formatter):
         return self.FORMATS[record.levelno].format(record)
 
 class TGHandler(logging.Handler):
-    def setup(self, level, level_bypass_prefix, message_skip_prefix, bot_key, chat_id, thread_id, error_chat_id, error_thread_id, flush_interval):
+    def setup(self, level, level_bypass_prefix, message_skip_prefix, bot_key, chat_id, thread_id, error_chat_id, error_thread_id, flush_interval, log_prefix):
         self.level_filter = level
         self.level_bypass_prefix = level_bypass_prefix
         self.message_skip_prefix = message_skip_prefix
@@ -108,6 +108,7 @@ class TGHandler(logging.Handler):
         self.error_chat_id = error_chat_id
         self.error_thread_id = error_thread_id
         self.flush_interval = flush_interval / 1000.0
+        self.log_prefix = log_prefix
 
         for attr in ('chat_id', 'thread_id', 'error_chat_id', 'error_thread_id'):
             val = getattr(self, attr)
@@ -166,8 +167,8 @@ class TGHandler(logging.Handler):
         data = f'--{boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
         if thread_id is not None:
             data += f'--{boundary}\r\nContent-Disposition: form-data; name="message_thread_id"\r\n\r\n{thread_id}\r\n'
-        if caption:
-            data += f'--{boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+        if caption or self.log_prefix:
+            data += f'--{boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n{self.log_prefix + " - " if self.log_prefix else ""}{caption}\r\n'
         data += (
             f'--{boundary}\r\n'
             f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'
@@ -190,6 +191,8 @@ class TGHandler(logging.Handler):
         if is_error and self.error_chat_id is not None:
             chat_id = self.error_chat_id
             thread_id = self.error_thread_id
+        if caption is None:
+            caption = ''
 
         if isinstance(file, str):
             with open(file, 'rb') as f:
@@ -396,6 +399,7 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
                 tg_config.get('error_chat_id', None),
                 tg_config.get('error_thread_id', None),
                 tg_config.get('flush_interval', 5000),
+                log_prefix,
             )
             TG_HANDLER.setLevel(logging.DEBUG)
             TG_HANDLER.setFormatter(formatter)
