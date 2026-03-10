@@ -168,7 +168,7 @@ class TGHandler(logging.Handler):
         if thread_id is not None:
             data += f'--{boundary}\r\nContent-Disposition: form-data; name="message_thread_id"\r\n\r\n{thread_id}\r\n'
         if caption or self.log_prefix:
-            data += f'--{boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n{self.log_prefix + " - " if self.log_prefix else ""}{caption}\r\n'
+            data += f'--{boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n{self.log_prefix + " - " if caption else ""}{caption}\r\n'
         data += (
             f'--{boundary}\r\n'
             f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'
@@ -185,7 +185,7 @@ class TGHandler(logging.Handler):
             },
         )
 
-    def send_file(self, file, name, caption='', is_error=False):
+    def send_file(self, file, name=None, caption='', is_error=False):
         chat_id = self.chat_id
         thread_id = self.thread_id
         if is_error and self.error_chat_id is not None:
@@ -197,10 +197,14 @@ class TGHandler(logging.Handler):
         if isinstance(file, str):
             with open(file, 'rb') as f:
                 filedata = f.read()
+                if name is None:
+                    name = os.path.basename(file)
         elif hasattr(file, 'read'):
             filedata = file.read()
             if isinstance(filedata, str):
                 filedata = filedata.encode()
+            if name is None:
+                name = f"{time.time()}.txt"
         else:
             logging.error(f'{self.message_skip_prefix}file must be a path (str) or file-like object, got {type(file).__name__}')
             return None
@@ -417,7 +421,8 @@ def setup(level=logging.DEBUG, capture_warnings=True, exception_hook=True, use_t
 
     logging.info('*******')
 
-def tg_send_file(file, name, caption='', is_error=False):
-    TG_HANDLER.send_file(file, name, caption, is_error)
+def tg_send_file(file, name=None, caption='', is_error=False):
+    t = threading.Thread(target=TG_HANDLER.send_file, args=(file, name, caption, is_error), daemon=False)
+    t.start()
 
 TG_HANDLER = TGHandler()
